@@ -50,7 +50,6 @@ do_unlock(){
 }
 
 ### Get options
-GIT_TAG=""
 while getopts dDh Opts; do
 	case $Opts in
 		d)
