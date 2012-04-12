@@ -6,12 +6,14 @@
 ###                               ###
 #####################################
 
-### Vars
+### Basic Vars
 DEBUG="false"
 DRY_RUN="false"
 SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no"
 SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -q"
 LOCK_FILE="/tmp/`basename $0`.lock"
+
+### Vars
 
 ### Base functions
 do_usage(){
