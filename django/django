@@ -1,0 +1,150 @@
+#!/sbin/runscript
+# Copyright 1999-2012 Gentoo Foundation
+# Distributed under the terms of the GNU General Public License v2
+# $Header: $
+
+depend() {
+	need net
+	use apache2 lighttpd nginx
+}
+
+RUNFILES_PATH=${DJANGO_RUNFILES_PATH:-/var/run/django}
+CONFIGS_DIR=${DJANGO_CONFIGS_DIR:-/etc/django/sites.d}
+
+### Find sites configs
+SITES=`ls $CONFIGS_DIR/ | grep '\.conf$'| sed 's|\.conf$||'`
+
+## Check sites configs
+if [ -z "$SITES" ]; then
+	eerror "Not found configuration for sites in dir $CONFIGS_DIR"
+	exit 1
+fi
+
+### Check args function
+do_check_worker_args(){
+	ARG_NAME="$1"
+	ARG_VALUE="$2"
+	if [ -z "$ARG_VALUE" ]; then
+		ewarn "Param $ARG_NAME not set, skipped run"
+		eend 1; echo
+		continue
+	fi
+}
+
+start() {
+	ebegin "Starting ${SVCNAME}"
+
+	## Run workers for sites
+	for SITE in $SITES; do
+		ebegin "Starting worker for $SITE"
+
+		# Clean vars
+		LISTEN="127.0.0.1"
+		PORT="3001"
+		SITE_PATH=""
+		USER=""
+		GROUP=""
+		WORK_DIR=""
+		PID_FILE="$RUNFILES_PATH/$SITE.pid"
+		LOGS_DIR=""
+
+		# Load vars for this site
+		source $CONFIGS_DIR/$SITE.conf
+
+		# Check vars
+		do_check_worker_args PROTOCOL $PROTOCOL
+		do_check_worker_args METHOD $METHOD
+		do_check_worker_args MAXREQUESTS $MAXREQUESTS
+		do_check_worker_args MAXSPARE $MAXSPARE
+		do_check_worker_args MINSPARE $MINSPARE
+		do_check_worker_args MAXCHILDREN $MAXCHILDREN
+		do_check_worker_args DEBUG $DEBUG
+		do_check_worker_args LISTEN $LISTEN
+		do_check_worker_args PORT $PORT
+		do_check_worker_args SITE_PATH $SITE_PATH
+		do_check_worker_args USER $USER
+		do_check_worker_args GROUP $GROUP
+		do_check_worker_args WORK_DIR $WORK_DIR
+		do_check_worker_args PID_FILE $PID_FILE
+		do_check_worker_args LOGS_DIR $LOGS_DIR
+
+		# Check running worker for site
+		if [ -f "$PID_FILE" ]; then
+			ewarn "Worker for $SITE already running ($PID_FILE)"
+			eend 1; echo
+			continue
+		fi
+
+		# Check installing framework
+		if ! [ -f "$SITE_PATH/manage.py" ]; then
+			ewarn "Framework not installed for site $SITE"
+			ewarn "please run: su - $USER -c 'django-admin.py startproject wwwroot'"
+			eend 1; echo
+			continue
+		fi
+
+		# Run worker
+		start-stop-daemon --start \
+			--user $USER \
+			--group $GROUP \
+			--pidfile $PID_FILE \
+			--exec /usr/bin/env -- python $SITE_PATH/manage.py runfcgi \
+			protocol=$PROTOCOL \
+			method=$METHOD \
+			maxrequests=$MAXREQUESTS \
+			maxspare=$MAXSPARE \
+			minspare=$MINSPARE \
+			maxchildren=$MAXCHILDREN \
+			debug=$DEBUG \
+			host=$LISTEN \
+			port=$PORT \
+			pidfile=$PID_FILE \
+			outlog=$LOGS_DIR/django_info.log \
+			errlog=$LOGS_DIR/django_error.log \
+			workdir=$WORK_DIR \
+
+		chmod 400 $PID_FILE
+
+		eend $?
+	done
+
+	eend $?
+}
+
+stop() {
+	ebegin "Stopping ${SVCNAME}"
+
+	## Stopping workers
+	for SITE in $SITES; do
+		ebegin "Stopping worker for $SITE"
+
+		# Clean vars
+		PID_FILE="$RUNFILES_PATH/$SITE.pid"
+
+		# Load vars for this site
+		source $CONFIGS_DIR/$SITE.conf
+
+		# Check vars
+		if [ -z "$PID_FILE" ]; then
+			ewarn "Parametr PID_FILE not set, skipped stopping worker for site $SITE"
+			eend 1; echo
+			continue
+		fi
+
+		# Check running worker for site
+		if ! [ -f "$PID_FILE" ]; then
+			ewarn "Worker for $SITE already stopping ( pid file $PID_FILE not found)"
+			eend 1; echo
+			continue
+		fi
+
+		# Run worker
+		start-stop-daemon --stop \
+			--pidfile $PID_FILE \
+			&& rm -f $PID_FILE
+
+		eend $?
+	done
+
+	eend $?
+}

@@ -19,7 +19,7 @@ LOCK_FILE="/tmp/`basename $0`.lock"
 do_usage(){
 	cat <<EOF
 Usage:
-	$0 -[hDd]
+	$0 -[dDh]
 
 Options:
 	-d	-- dry run

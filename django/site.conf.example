@@ -1,0 +1,18 @@
+# Mandatory parameters
+PROTOCOL="fcgi"
+METHOD="threaded" # "prefork"
+MAXREQUESTS="300"
+MAXSPARE="30"
+MINSPARE="5"
+MAXCHILDREN="50"
+DEBUG="false"
+USER="user"
+GROUP="$USER"
+WORK_DIR="/opt/APP/$USER"
+SITE_PATH="$WORK_DIR/wwwroot"
+LOGS_DIR="$WORK_DIR/logs"
+
+# Optional parameters
+#LISTEN="127.0.0.1"
+#PORT="3001"
+#PID_FILE="/var/run/django/$USER.pid"
