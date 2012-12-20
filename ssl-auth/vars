@@ -1,0 +1,9 @@
+KEY_COUNTRY="RU"
+KEY_PROVINCE="Russia"
+KEY_CITY="Moscow"
+KEY_ORG="Org_name"
+KEY_ORG_UNIT="IT"
+KEY_EMAIL="admin@example.com"
+
+CLIENT_CERTS_DIR="client_certs"
+SERVER_CERTS_DIR="server_certs"
