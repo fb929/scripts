@@ -122,7 +122,7 @@ fi
 
 ### Action
 if [ -z "$REMOTE_HOST" ]; then
-	do_run install -m 0770 -d $BACKUPS_DIR
+	do_run install -m 0770 -d $BACKUPS_DIR $TMP_DIR
 	if $XTRABACKUP; then
 		do_run "innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 > $BACKUPS_DIR/${DATE}_mysql.tzo" 2> $ERROR_LOG
 	else
@@ -133,6 +133,7 @@ if [ -z "$REMOTE_HOST" ]; then
 	do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -regex '.*\(tzo\|lzo\)' -mtime +$BACKUPS_LIFE | xargs rm -f"
 else
 	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'install -d $REMOTE_BACKUPS_DIR'"
+	do_run install -m 0770 -d $TMP_DIR
 	if $XTRABACKUP; then
 		do_run "innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 | $SSH $REMOTE_USER@$REMOTE_HOST 'cat > $REMOTE_BACKUPS_DIR/${DATE}_mysql.tzo'" 2> $ERROR_LOG
 	else
