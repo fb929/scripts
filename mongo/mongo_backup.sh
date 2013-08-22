@@ -75,7 +75,7 @@ do_check_exit_code(){
 }
 
 ### Get options
-while getopts H:b:p:l:R:P:L:Dd Opts; do
+while getopts H:b:p:l:R:P:L:dDh Opts; do
 	case $Opts in
 		H) HOST="$OPTARG" ;;
 		b) DBS="$OPTARG" ;;
@@ -86,7 +86,7 @@ while getopts H:b:p:l:R:P:L:Dd Opts; do
 		L) REMOTE_BACKUPS_LIFE="$OPTARG" ;;
 		d) DRY_RUN="true" ;;
 		D) DEBUG="true" ;;
-		?) do_usage ;;
+		?|h) do_usage ;;
 	esac
 done
 

@@ -90,7 +90,7 @@ do_check_exit_code(){
 ### Get options
 CONN_OPTS=""
 DUMP_OPTS=""
-while getopts b:ro:xct:p:l:R:P:L:dD Opts; do
+while getopts b:ro:xct:p:l:R:P:L:dDh Opts; do
 	case $Opts in
 		b) DBS="$OPTARG" ;;
 		r) DUMP_OPTS="--dump-slave=2" ;;
@@ -105,7 +105,7 @@ while getopts b:ro:xct:p:l:R:P:L:dD Opts; do
 		L) REMOTE_BACKUPS_LIFE="$OPTARG" ;;
 		d) DRY_RUN="true" ;;
 		D) DEBUG="true" ;;
-		?) do_usage ;;
+		?|h) do_usage ;;
 	esac
 done
 
