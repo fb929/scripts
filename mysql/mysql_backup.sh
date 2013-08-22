@@ -19,6 +19,7 @@ ERROR_LOG="/var/log/mysql/backup_error.log"
 
 ### Vars
 XTRABACKUP="false"
+HOTCOPYBACKUP="false"
 BACKUPS_DIR="/opt/BACKUP/mysql"
 BACKUPS_LIFE="5"
 REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mysql/$HOSTNAME"
@@ -42,14 +43,20 @@ Options:
 	-o	-- options for mysql connection (if you use options -x, please set "long opts" format)
 
 	-x	-- use xtrabackup for backuping (default use mysqldump)
+		-- for restore use command xtrabackup --prepare --apply-log-only --target-dir=/path/to/backup/dir
+
+	-c	-- use mysqlhotcopy for backuping (default use mysqldump)
+		-- only for MYISAM engine
+		-- does not work which -R option
+
 	-t	-- set path to tmpdir for xtrabackup (default $TMP_DIR)
 
 	-p	-- path to backups dir (default $BACKUPS_DIR)
 	-l	-- backups life in days (default $BACKUPS_LIFE)
 
 	-R	-- remote host
-	-P	-- path to backups dir on remote hosts (default $REMOTE_BACKUPS_DIR), use only with -r options
-	-L	-- backups life on remote host in days (default $REMOTE_BACKUPS_LIFE), use only with -r options
+	-P	-- path to backups dir on remote hosts (default $REMOTE_BACKUPS_DIR), use only with -R options
+	-L	-- backups life on remote host in days (default $REMOTE_BACKUPS_LIFE), use only with -R options
 
 	-d	-- dry run
 	-D	-- debug
@@ -83,12 +90,13 @@ do_check_exit_code(){
 ### Get options
 CONN_OPTS=""
 DUMP_OPTS=""
-while getopts b:ro:xt:p:l:R:P:L:dD Opts; do
+while getopts b:ro:xct:p:l:R:P:L:dD Opts; do
 	case $Opts in
 		b) DBS="$OPTARG" ;;
 		r) DUMP_OPTS="--dump-slave=2" ;;
 		o) CONN_OPTS="$OPTARG" ;;
 		x) XTRABACKUP="true" ;;
+		c) HOTCOPYBACKUP="true" ;;
 		t) TMP_DIR="$OPTARG" ;;
 		p) BACKUPS_DIR="$OPTARG" ;;
 		l) BACKUPS_LIFE="$OPTARG" ;;
@@ -103,37 +111,42 @@ done
 
 ### Check options
 if [ -z "$DBS" ]; then
-	DBS=`mysql $CONN_OPTS -N -e 'show databases' | sort | grep -vP "^information_schema$|^performance_schema$|^test$" | xargs echo`
+	DBS=`mysql $CONN_OPTS -BNe 'show databases' | sort | grep -vP "^information_schema$|^performance_schema$|^test$" | xargs echo`
 fi
 
 ### Check programm
-if ! which innobackupex > /dev/null 2>&1; then
-	echo "innobackupex does not exist, exiting"
-	exit 1
-fi
-if ! which mysqldump > /dev/null 2>&1; then
-	echo "mysqldump does not exist, exiting"
-	exit 1
-fi
-if ! which lzop > /dev/null 2>&1; then
-	echo "lzop does not exist, exiting"
-	exit 1
-fi
+for PROGRAM in mysqldump mysqlhotcopy innobackupex lzop; do
+	if ! which $PROGRAM > /dev/null 2>&1; then
+		echo "$PROGRAM does not exist, exiting"
+		exit 1
+	fi
+done
 
 ### Action
 if [ -z "$REMOTE_HOST" ]; then
-	do_run install -m 0770 -d $BACKUPS_DIR $TMP_DIR
+	do_run install -m 0770 -d $BACKUPS_DIR
+	do_run install -d $TMP_DIR
+	do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -regex '.*\(tzo\|lzo\)' -mtime +$BACKUPS_LIFE | xargs rm -f"
 	if $XTRABACKUP; then
 		do_run "innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 > $BACKUPS_DIR/${DATE}_mysql.tzo" 2> $ERROR_LOG
+	elif $HOTCOPYBACKUP; then
+		for DB in $DBS; do
+			if mysql $CONN_OPTS -BNe 'show table status' $DB |  cut -f 2 | grep -q InnoDB; then
+				do_run "mysqldump $DUMP_OPTS $CONN_OPTS $DB | lzop -1 > $BACKUPS_DIR/${DATE}_$DB.sql.lzo"
+			else
+				do_run "mysqlhotcopy -q $CONN_OPTS $DB $BACKUPS_DIR"
+				do_run "cd $BACKUPS_DIR && tar --lzop -cpf ${DATE}_$DB.tzo $DB; rm -rf $DB"
+			fi
+		done
 	else
 		for DB in $DBS; do
 			do_run "mysqldump $DUMP_OPTS $CONN_OPTS $DB | lzop -1 > $BACKUPS_DIR/${DATE}_$DB.sql.lzo"
 		done
 	fi
-	do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -regex '.*\(tzo\|lzo\)' -mtime +$BACKUPS_LIFE | xargs rm -f"
 else
 	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'install -d $REMOTE_BACKUPS_DIR'"
-	do_run install -m 0770 -d $TMP_DIR
+	do_run install -d $TMP_DIR
+	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR -maxdepth 1 -type f -regex \".*\(tzo\|lzo\)\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f ' "
 	if $XTRABACKUP; then
 		do_run "innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 | $SSH $REMOTE_USER@$REMOTE_HOST 'cat > $REMOTE_BACKUPS_DIR/${DATE}_mysql.tzo'" 2> $ERROR_LOG
 	else
@@ -141,5 +154,4 @@ else
 			do_run "mysqldump $DUMP_OPTS $CONN_OPTS $DB | lzop -1 | $SSH $REMOTE_USER@$REMOTE_HOST 'cat > $REMOTE_BACKUPS_DIR/${DATE}_$DB.sql.lzo'"
 		done
 	fi
-	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR -maxdepth 1 -type f -regex \".*\(tzo\|lzo\)\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f ' "
 fi
