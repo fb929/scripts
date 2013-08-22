@@ -1,36 +1,53 @@
 #!/bin/bash
 
-#################################################
-###                                           ###
-### Script to the local backup mongo database ###
-###                                           ###
-#################################################
+###########################################
+###                                     ###
+### Script to the backup mongo database ###
+###                                     ###
+###########################################
 
-### Static vars
+### Basic vars
 DEBUG="false"
 DRY_RUN="false"
-BACKUPS_DIR="/opt/BACKUP/mongo"
-BACKUPS_LIFE="1"
+SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no"
+SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -q"
+LOCK_FILE="/tmp/`basename $0`.lock"
 DATE=`date +%Y%m%d_%H%M`	# format: year month day hours minute
-EXIT_CODES="0"
 INFO_LOG="/var/log/mongodb/backup_info.log"
 ERROR_LOG="/var/log/mongodb/backup_error.log"
-HOST="0.0.0.0"
+EXIT_CODES="0"
+
+### Vars
+HOST="127.0.0.1"
+BACKUPS_DIR="/opt/BACKUP/mongo"
+BACKUPS_LIFE="7"
+REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mongo/$HOSTNAME"
+REMOTE_BACKUPS_LIFE="10"
+REMOTE_USER="backup"
 
 ### Functions
 do_usage(){
 	cat <<EOF
+
+Script to the backup mongo database
+
 Usage:
-	$0 [-Dd]
-	$0 -H <hostname> [-Dd]
-	$0 -H <hostname> -b <db or dbs> [-Dd]
+	$0 [-dD] [options]
 	$0 -h
 
 Options:
-	-H	-- set DB hosname (default 127.0.0.1)
+	-H	-- set DB hosname (default $HOST)
 	-b	-- set DB name for backup (default backuping all db)
-	-D	-- debug mode
-	-d	-- dry run (only show did not perform)
+
+	-p	-- path to backups dir (default $BACKUPS_DIR)
+	-l	-- backups life in days (default $BACKUPS_LIFE)
+
+	-R	-- remote host
+	-P	-- path to backups dir on remote hosts (default $REMOTE_BACKUPS_DIR), use only with -R options
+	-L	-- backups life on remote host in days (default $REMOTE_BACKUPS_LIFE), use only with -R options
+
+	-d	-- dry run
+	-D	-- debug
 	-h	-- print this help page
 EOF
 	exit 1
@@ -58,44 +75,36 @@ do_check_exit_code(){
 }
 
 ### Get options
-b=""
-while getopts H:b:Dd Opts; do
+while getopts H:b:p:l:R:P:L:Dd Opts; do
 	case $Opts in
-		H)
-			HOST="$OPTARG"
-			;;
-		b)
-			DBS="$OPTARG"
-			;;
-		D)
-			DEBUG="true"
-			;;
-		d)
-			DRY_RUN="true"
-			;;
-		?)
-			do_usage
-			;;
+		H) HOST="$OPTARG" ;;
+		b) DBS="$OPTARG" ;;
+		p) BACKUPS_DIR="$OPTARG" ;;
+		l) BACKUPS_LIFE="$OPTARG" ;;
+		R) REMOTE_HOST="$OPTARG" ;;
+		P) REMOTE_BACKUPS_DIR="$OPTARG" ;;
+		L) REMOTE_BACKUPS_LIFE="$OPTARG" ;;
+		d) DRY_RUN="true" ;;
+		D) DEBUG="true" ;;
+		?) do_usage ;;
 	esac
 done
+
+### Check lock
+if [ -f $LOCK_FILE ]; then
+	echo "$0 already running!"
+	exit 1
+else
+	touch $LOCK_FILE
+fi
 
 ### Check options
 [ x"$HOST" == x"0.0.0.0" ] && HOST="127.0.0.1"
 
 ### Action
-do_debug "=> Check Backups dir:"
-if [ -d $BACKUPS_DIR/ ]; then
-	do_debug "[ OK ]"
-else
-	do_debug "[ FAIL ]"
-	do_debug "$BACKUPS_DIR not found, creating..."
-	do_run install -m 0770 -d $BACKUPS_DIR
-fi
-
-do_debug "=> Cleaning old archive:"
+do_run install -m 0770 -d $BACKUPS_DIR
 do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -name '*.tgz' -mtime +$BACKUPS_LIFE | xargs rm -f"
-
-do_debug "=> Shoot dump:"
+# Create dump
 cd $BACKUPS_DIR
 if [ -z "$DBS" ]; then
 	do_run "mongodump --host $HOST > $INFO_LOG 2>$ERROR_LOG"
@@ -105,6 +114,16 @@ else
 	done
 fi
 
-do_debug "=> Archiving dump:"
+# Archiving dump
 do_run tar -zcpf ${DATE}.dump.tgz dump
 do_run rm -rf dump
+
+# move to remote host
+if ! [ -z "$REMOTE_HOST" ]; then
+	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR/ -maxdepth 1 -type f -name \"*.tgz\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f' "
+	do_run "rsync -a $BACKUPS_DIR/${DATE}.dump.tgz $REMOTE_USER@$REMOTE_HOST:$REMOTE_BACKUPS_DIR/"
+	do_run "rm -f $BACKUPS_DIR/${DATE}.dump.tgz"
+fi
+
+rm $LOCK_FILE
+exit 0
