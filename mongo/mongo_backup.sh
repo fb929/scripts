@@ -1,5 +1,8 @@
 #!/bin/bash
 
+## DO NOT EDIT
+## This file is under PUPPET control
+
 ###########################################
 ###                                     ###
 ### Script to the backup mongo database ###
@@ -9,12 +12,14 @@
 ### Basic vars
 DEBUG="false"
 DRY_RUN="false"
-SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no"
-SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -q"
+SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no"
+SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no -q"
+RSYNC="rsync -a --rsh='$SSH'"
 LOCK_FILE="/tmp/`basename $0`.lock"
 DATE=`date +%Y%m%d_%H%M`	# format: year month day hours minute
-INFO_LOG="/var/log/mongodb/backup_info.log"
-ERROR_LOG="/var/log/mongodb/backup_error.log"
+LOGS_DIR="/var/log/mongodb"
+INFO_LOG="$LOGS_DIR/backup_info.log"
+ERROR_LOG="$LOGS_DIR/backup_error.log"
 EXIT_CODES="0"
 
 ### Vars
@@ -90,18 +95,11 @@ while getopts H:b:p:l:R:P:L:dDh Opts; do
 	esac
 done
 
-### Check lock
-if [ -f $LOCK_FILE ]; then
-	echo "$0 already running!"
-	exit 1
-else
-	touch $LOCK_FILE
-fi
-
 ### Check options
 [ x"$HOST" == x"0.0.0.0" ] && HOST="127.0.0.1"
 
 ### Action
+do_run install -d $LOGS_DIR
 do_run install -m 0770 -d $BACKUPS_DIR
 do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -name '*.tgz' -mtime +$BACKUPS_LIFE | xargs rm -f"
 # Create dump
@@ -121,9 +119,8 @@ do_run rm -rf dump
 # move to remote host
 if ! [ -z "$REMOTE_HOST" ]; then
 	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR/ -maxdepth 1 -type f -name \"*.tgz\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f' "
-	do_run "rsync -a $BACKUPS_DIR/${DATE}.dump.tgz $REMOTE_USER@$REMOTE_HOST:$REMOTE_BACKUPS_DIR/"
+	do_run "$RSYNC $BACKUPS_DIR/${DATE}.dump.tgz $REMOTE_USER@$REMOTE_HOST:$REMOTE_BACKUPS_DIR/"
 	do_run "rm -f $BACKUPS_DIR/${DATE}.dump.tgz"
 fi
 
-rm $LOCK_FILE
 exit 0

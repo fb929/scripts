@@ -1,5 +1,8 @@
 #!/bin/bash
 
+## DO NOT EDIT
+## This file is under PUPPET control
+
 ###########################################
 ###                                     ###
 ### Script to the backup mysql database ###
@@ -9,8 +12,8 @@
 ### Basic Vars
 DEBUG="false"
 DRY_RUN="false"
-SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no"
-SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -q"
+SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no"
+SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no -q"
 LOCK_FILE="/tmp/`basename $0`.lock"
 DATE=`date +%Y%m%d-%H%M`	# format: year month day hours minute
 EXIT_CODES="0"
