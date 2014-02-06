@@ -3,11 +3,11 @@
 ## DO NOT EDIT
 ## This file is under PUPPET control
 
-###########################################
-###                                     ###
-### Script to the backup mongo database ###
-###                                     ###
-###########################################
+########################################
+###                                  ###
+### Script for backup mongo database ###
+###                                  ###
+########################################
 
 ### Basic vars
 DEBUG="false"
@@ -25,10 +25,18 @@ EXIT_CODES="0"
 ### Vars
 HOST="127.0.0.1"
 BACKUPS_DIR="/opt/BACKUP/mongo"
-BACKUPS_LIFE="7"
-REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mongo/$HOSTNAME"
-REMOTE_BACKUPS_LIFE="10"
+BACKUPS_LIFE="2"
+REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mongo/$Hostname"
+REMOTE_BACKUPS_LIFE="0"
 REMOTE_USER="backup"
+if tar --help | grep -q lzop; then
+	TAR="tar --lzop"
+	ARH_EXT="tzo"
+else
+	TAR="tar --gzip"
+	ARH_EXT="tgz"
+fi
+
 
 ### Functions
 do_usage(){
@@ -86,7 +94,7 @@ while getopts H:b:p:l:R:P:L:dDh Opts; do
 		b) DBS="$OPTARG" ;;
 		p) BACKUPS_DIR="$OPTARG" ;;
 		l) BACKUPS_LIFE="$OPTARG" ;;
-		R) REMOTE_HOST="$OPTARG" ;;
+		R) REMOTE_HOST="$OPTARG"; BACKUPS_DIR="/opt/BACKUP/nobacula/mongo" ;;
 		P) REMOTE_BACKUPS_DIR="$OPTARG" ;;
 		L) REMOTE_BACKUPS_LIFE="$OPTARG" ;;
 		d) DRY_RUN="true" ;;
@@ -101,7 +109,7 @@ done
 ### Action
 do_run install -d $LOGS_DIR
 do_run install -m 0770 -d $BACKUPS_DIR
-do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -name '*.tgz' -mtime +$BACKUPS_LIFE | xargs rm -f"
+do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -regex \".*\(tzo\|lzo\|tgz\)\" -mtime +$BACKUPS_LIFE | xargs rm -f"
 # Create dump
 cd $BACKUPS_DIR
 if [ -z "$DBS" ]; then
@@ -113,14 +121,14 @@ else
 fi
 
 # Archiving dump
-do_run tar -zcpf ${DATE}.dump.tgz dump
+do_run $TAR -cpf ${DATE}.dump.$ARH_EXT dump
 do_run rm -rf dump
 
 # move to remote host
 if ! [ -z "$REMOTE_HOST" ]; then
-	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR/ -maxdepth 1 -type f -name \"*.tgz\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f' "
-	do_run "$RSYNC $BACKUPS_DIR/${DATE}.dump.tgz $REMOTE_USER@$REMOTE_HOST:$REMOTE_BACKUPS_DIR/"
-	do_run "rm -f $BACKUPS_DIR/${DATE}.dump.tgz"
+	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR/ -maxdepth 1 -type f -regex \".*\(tzo\|lzo\|tgz\)\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f' "
+	do_run "$RSYNC $BACKUPS_DIR/${DATE}.dump.$ARH_EXT $REMOTE_USER@$REMOTE_HOST:$REMOTE_BACKUPS_DIR/"
+	do_run "rm -f $BACKUPS_DIR/${DATE}.dump.$ARH_EXT"
 fi
 
 exit 0

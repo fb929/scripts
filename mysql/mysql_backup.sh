@@ -3,13 +3,13 @@
 ## DO NOT EDIT
 ## This file is under PUPPET control
 
-###########################################
-###                                     ###
-### Script to the backup mysql database ###
-###                                     ###
-###########################################
+########################################
+###                                  ###
+### Script for backup mysql database ###
+###                                  ###
+########################################
 
-### Basic Vars
+# basic vars
 DEBUG="false"
 DRY_RUN="false"
 SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no"
@@ -20,17 +20,17 @@ EXIT_CODES="0"
 INFO_LOG="/var/log/mysql/backup_info.log"
 ERROR_LOG="/var/log/mysql/backup_error.log"
 
-### Vars
+# vars
 XTRABACKUP="false"
 HOTCOPYBACKUP="false"
 BACKUPS_DIR="/opt/BACKUP/mysql"
-BACKUPS_LIFE="5"
-REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mysql/$HOSTNAME"
-REMOTE_BACKUPS_LIFE="10"
-REMOTE_USER="mysql_backup"
+BACKUPS_LIFE="3"
+REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mysql/$Hostname"
+REMOTE_BACKUPS_LIFE="3"
+REMOTE_USER="backup"
 TMP_DIR="/opt/DB/tmp"
 
-### Functions
+# functions
 do_usage(){
 	cat <<EOF
 
@@ -57,6 +57,7 @@ Options:
 	-p	-- path to backups dir (default $BACKUPS_DIR)
 	-l	-- backups life in days (default $BACKUPS_LIFE)
 
+	-U	-- remote user (default $REMOTE_USER)
 	-R	-- remote host
 	-P	-- path to backups dir on remote hosts (default $REMOTE_BACKUPS_DIR), use only with -R options
 	-L	-- backups life on remote host in days (default $REMOTE_BACKUPS_LIFE), use only with -R options
@@ -90,34 +91,35 @@ do_check_exit_code(){
 	fi
 }
 
-### Get options
+# get options
 CONN_OPTS=""
 DUMP_OPTS=""
-while getopts b:ro:xct:p:l:R:P:L:dDh Opts; do
+while getopts b:ro:xct:p:l:U:R:P:L:dDh Opts; do
 	case $Opts in
-		b) DBS="$OPTARG" ;;
-		r) DUMP_OPTS="--dump-slave=2" ;;
-		o) CONN_OPTS="$OPTARG" ;;
-		x) XTRABACKUP="true" ;;
-		c) HOTCOPYBACKUP="true" ;;
-		t) TMP_DIR="$OPTARG" ;;
-		p) BACKUPS_DIR="$OPTARG" ;;
-		l) BACKUPS_LIFE="$OPTARG" ;;
-		R) REMOTE_HOST="$OPTARG" ;;
-		P) REMOTE_BACKUPS_DIR="$OPTARG" ;;
-		L) REMOTE_BACKUPS_LIFE="$OPTARG" ;;
-		d) DRY_RUN="true" ;;
-		D) DEBUG="true" ;;
-		?|h) do_usage ;;
+		b) DBS="$OPTARG";;
+		r) DUMP_OPTS="--dump-slave=2";;
+		o) CONN_OPTS="$OPTARG";;
+		x) XTRABACKUP="true";;
+		c) HOTCOPYBACKUP="true";;
+		t) TMP_DIR="$OPTARG";;
+		p) BACKUPS_DIR="$OPTARG";;
+		l) BACKUPS_LIFE="$OPTARG";;
+		U) REMOTE_USER="$OPTARG";;
+		R) REMOTE_HOST="$OPTARG";;
+		P) REMOTE_BACKUPS_DIR="$OPTARG";;
+		L) REMOTE_BACKUPS_LIFE="$OPTARG";;
+		d) DRY_RUN="true";;
+		D) DEBUG="true";;
+		?|h) do_usage;;
 	esac
 done
 
-### Check options
+# check options
 if [ -z "$DBS" ]; then
 	DBS=`mysql $CONN_OPTS -BNe 'show databases' | sort | grep -vP "^information_schema$|^performance_schema$|^test$" | xargs echo`
 fi
 
-### Check programm
+# check programm
 for PROGRAM in mysqldump mysqlhotcopy innobackupex lzop; do
 	if ! which $PROGRAM > /dev/null 2>&1; then
 		echo "$PROGRAM does not exist, exiting"
@@ -125,13 +127,19 @@ for PROGRAM in mysqldump mysqlhotcopy innobackupex lzop; do
 	fi
 done
 
-### Action
+# get passwd
+if [ -f /root/.my.cnf ]; then
+	MYSQL_PWD=`grep password /root/.my.cnf | awk '{print $3}'`
+fi
+
+# if set remote host, then create backup and transfer to remote host on the "pipe"
+# else create local backup
 if [ -z "$REMOTE_HOST" ]; then
 	do_run install -m 0770 -d $BACKUPS_DIR
 	do_run install -d $TMP_DIR
 	do_run "find $BACKUPS_DIR/ -maxdepth 1 -type f -regex '.*\(tzo\|lzo\)' -mtime +$BACKUPS_LIFE | xargs rm -f"
 	if $XTRABACKUP; then
-		do_run "innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 > $BACKUPS_DIR/${DATE}_mysql.tzo" 2> $ERROR_LOG
+		do_run "ulimit -n 4096; MYSQL_PWD='$MYSQL_PWD' innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 > $BACKUPS_DIR/${DATE}_mysql.tzo" 2> $ERROR_LOG
 	elif $HOTCOPYBACKUP; then
 		for DB in $DBS; do
 			if mysql $CONN_OPTS -BNe 'show table status' $DB |  cut -f 2 | grep -q InnoDB; then
@@ -149,9 +157,9 @@ if [ -z "$REMOTE_HOST" ]; then
 else
 	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'install -d $REMOTE_BACKUPS_DIR'"
 	do_run install -d $TMP_DIR
-	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR -maxdepth 1 -type f -regex \".*\(tzo\|lzo\)\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f ' "
+	do_run "$SSH $REMOTE_USER@$REMOTE_HOST 'find $REMOTE_BACKUPS_DIR -maxdepth 1 -type f -regex \".*\(tzo\|lzo\)\" -mtime +$REMOTE_BACKUPS_LIFE | xargs rm -f'"
 	if $XTRABACKUP; then
-		do_run "innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 | $SSH $REMOTE_USER@$REMOTE_HOST 'cat > $REMOTE_BACKUPS_DIR/${DATE}_mysql.tzo'" 2> $ERROR_LOG
+		do_run "ulimit -n 4096; MYSQL_PWD='$MYSQL_PWD' innobackupex $CONN_OPTS --no-lock --tmpdir=$TMP_DIR --defaults-file=/etc/mysql/my.cnf --databases='$DBS' --parallel=8 --stream=tar ./ | lzop -1 | $SSH $REMOTE_USER@$REMOTE_HOST 'cat > $REMOTE_BACKUPS_DIR/${DATE}_mysql.tzo'" 2> $ERROR_LOG
 	else
 		for DB in $DBS; do
 			do_run "mysqldump $DUMP_OPTS $CONN_OPTS $DB | lzop -1 | $SSH $REMOTE_USER@$REMOTE_HOST 'cat > $REMOTE_BACKUPS_DIR/${DATE}_$DB.sql.lzo'"
