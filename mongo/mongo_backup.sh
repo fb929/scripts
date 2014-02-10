@@ -26,7 +26,8 @@ EXIT_CODES="0"
 HOST="127.0.0.1"
 BACKUPS_DIR="/opt/BACKUP/mongo"
 BACKUPS_LIFE="2"
-REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mongo/$Hostname"
+FULL_HOSTNAME=`hostname -f 2>/dev/null || hostname`
+REMOTE_BACKUPS_DIR="/opt/BACKUP/nobacula/mongo/$FULL_HOSTNAME"
 REMOTE_BACKUPS_LIFE="0"
 REMOTE_USER="backup"
 if tar --help | grep -q lzop; then
