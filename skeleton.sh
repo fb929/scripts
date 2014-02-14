@@ -1,23 +1,27 @@
 #!/bin/bash
 
-#####################################
-###                               ###
-### Skeleton for creating scripts ###
-###                               ###
-#####################################
+# skeleton for creating scripts
 
-### Basic Vars
+# basic vars
 DEBUG="false"
 DRY_RUN="false"
-SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no"
-SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -q"
+SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no"
+SCP="scp -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no -q"
 LOCK_FILE="/tmp/`basename $0`.lock"
+DATE=`date +%Y%m%d-%H%M`	# format: year month day hours minute
+EXIT_CODES="0"
+INFO_LOG="/var/log/`basename $0`.log"
+ERROR_LOG="/var/log/`basename $0`.log"
 
-### Vars
+# vars
+#FULL_HOSTNAME=`hostname -f 2>/dev/null || hostname`
 
-### Base functions
+# base functions
 do_usage(){
 	cat <<EOF
+
+Simple script
+
 Usage:
 	$0 -[dDh]
 
@@ -25,6 +29,7 @@ Options:
 	-d	-- dry run
 	-D	-- debug
 	-h	-- print this help page
+
 EOF
 	exit 1
 }
@@ -44,27 +49,29 @@ do_run(){
 		EXIT_CODE="$?"
 		EXIT_CODES=$(($EXIT_CODES + $EXIT_CODE))
 	fi
+# uncomment this if you need stop programm after CMD return error code
+#	do_check_exit_code
+}
+do_check_exit_code(){
+	if ! [ x"$EXIT_CODES" = x0 ]; then
+		echo "exit code $CMD not 0"
+		exit 1
+	fi
 }
 do_unlock(){
 	rm -f $LOCK_FILE
 }
 
-### Get options
+# get options
 while getopts dDh Opts; do
 	case $Opts in
-		d)
-			DRY_RUN="true"
-			;;
-		D)
-			DEBUG="true"
-			;;
-		h|?)
-			do_usage
-			;;
+		d) DRY_RUN="true" ;;
+		D) DEBUG="true" ;;
+		h|?) do_usage ;;
 	esac
 done
 
-### Сheck lock file
+# сheck lock file
 if [ -f $LOCK_FILE ]; then
 	echo "$0 already running"
 	echo "lock file $LOCK_FILE"
@@ -73,7 +80,7 @@ else
 	touch $LOCK_FILE
 fi
 
-### Action
+# action
 
-### Unlock
+# unlock
 do_unlock
