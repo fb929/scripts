@@ -70,6 +70,7 @@ while getopts dDh Opts; do
 		h|?) do_usage ;;
 	esac
 done
+shift $((OPTIND-1))
 
 # сheck lock file
 if [ -f $LOCK_FILE ]; then
