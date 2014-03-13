@@ -55,6 +55,7 @@ do_run(){
 do_check_exit_code(){
 	if ! [ x"$EXIT_CODES" = x0 ]; then
 		echo "exit code $CMD not 0"
+		do_unlock
 		exit 1
 	fi
 }
