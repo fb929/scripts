@@ -23,7 +23,7 @@ do_usage(){
 Simple script
 
 Usage:
-	$0 -[dDh]
+	$0 [-dDh]
 
 Options:
 	-d	-- dry run
