@@ -3,6 +3,7 @@
 # skeleton for creating scripts
 
 # basic vars
+FORCE="false"
 DEBUG="false"
 DRY_RUN="false"
 SSH="ssh -o ConnectTimeout=5 -o PasswordAuthentication=no -o StrictHostKeyChecking=no"
@@ -20,12 +21,13 @@ ERROR_LOG="/var/log/`basename $0`.log"
 do_usage(){
 	cat <<EOF
 
-Simple script
+skeleton for creating scripts
 
 Usage:
-	$0 [-dDh]
+	$0 [-fdDh]
 
 Options:
+	-f	-- force mod
 	-d	-- dry run
 	-D	-- debug
 	-h	-- print this help page
@@ -64,14 +66,27 @@ do_unlock(){
 }
 
 # get options
-while getopts dDh Opts; do
-	case $Opts in
-		d) DRY_RUN="true" ;;
-		D) DEBUG="true" ;;
-		h|?) do_usage ;;
+while getopts fdDh OPTS; do
+	case $OPTS in
+		f) FORCE="true";;
+		d) DRY_RUN="true";;
+		D) DEBUG="true";;
+		h|?) do_usage;;
 	esac
 done
 shift $((OPTIND-1))
+
+# this you can set dynamic vars if you need
+# dynamic vars
+#NAME="$1"
+#EMAIL="$2"
+#
+# after this, you can check vars
+# check dynamic vars
+#if [ -z "$NAME" ] || [ -z "$EMAIL" ]; then
+#	do_usage
+#fi
+
 
 # сheck lock file
 if [ -f $LOCK_FILE ]; then
