@@ -83,7 +83,7 @@ shift $((OPTIND-1))
 #
 # after this, you can check vars
 # check dynamic vars
-#if [ -z "$NAME" ] || [ -z "$EMAIL" ]; then
+#if [[ -z $NAME || -z $EMAIL ]]; then
 #	do_usage
 #fi
 
