@@ -88,6 +88,24 @@ shift $((OPTIND-1))
 #fi
 
 
+#if $FORCE; then
+#	echo "force mode"
+#else
+#	echo "You are sure to do it this ? (Yes\No)"
+#	read ANSWER
+#	case $ANSWER in
+#		Y*|y*)
+#			:
+#			;;
+#		*)
+#			echo "Skipped"
+#			continue
+#			;;
+#	esac
+#fi
+
+
+
 # сheck lock file
 if [ -f $LOCK_FILE ]; then
 	echo "$0 already running"
