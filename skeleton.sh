@@ -119,3 +119,8 @@ fi
 
 # unlock
 do_unlock
+
+# разделитель в цикле - перевод строки
+# IFS=$'\n'
+# for LINE in $LINES;do
+
