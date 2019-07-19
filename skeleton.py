@@ -27,7 +27,6 @@ cfg = {
 
 # parse args
 parser = argparse.ArgumentParser( description = '''
-inventory hosts control
 default config files: %s
 
 ''' % ', '.join(defaultConfigFiles),
