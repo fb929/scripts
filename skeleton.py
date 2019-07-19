@@ -19,11 +19,11 @@ homeDir             = expanduser("~")
 defaultConfigFiles  = [
     '/etc/' + scriptName + '.yaml',
     homeDir + '/.' + scriptName + '.yaml',
-]   
+]
 cfg = {
     'logFile':          'stdout',
     'logLevel':         'info',
-}   
+}
 
 # parse args
 parser = argparse.ArgumentParser( description = '''
@@ -37,7 +37,7 @@ parser.add_argument(
     '-c',
     '--config',
     help = 'path to config file',
-)   
+)
 args = parser.parse_args()
 argConfigFile = args.config
 
@@ -49,7 +49,7 @@ if argConfigFile:
                 cfg.update(yaml.load(ymlfile))
         except Exception as e:
             logging.error('failed load config file: "%s", error: "%s"', argConfigFile, e)
-            exit(1)  
+            exit(1)
 else:
     for configFile in defaultConfigFiles:
         if os.path.isfile(configFile):
@@ -60,7 +60,7 @@ else:
                     except Exception as e:
                         logging.warning('skipping load load config file: "%s", error "%s"', configFile, e)
                         continue
-            except:  
+            except:
                 continue
 
 # fix logDir
@@ -71,7 +71,7 @@ if cfg['logDir'] == '':
 
 if __name__ == "__main__":
     # basic config {{
-    for dirPath in [ 
+    for dirPath in [
         cfg['logDir'],
     ]:
         try:
