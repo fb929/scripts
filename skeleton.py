@@ -18,10 +18,11 @@ import logging
 scriptName          = os.path.basename(sys.argv[0]).split('.')[0]
 homeDir             = expanduser("~")
 defaultConfigFiles  = [
-    '/etc/' + scriptName + '.yaml',
+    '/etc/' + scriptName + '/' + scriptName + '.yaml',
     homeDir + '/.' + scriptName + '.yaml',
 ]
 cfg = {
+    'logFile':          '/var/log/' + scriptName + '/' + scriptName + '.log',
     'logFile':          'stdout',
     'logLevel':         'info',
 }
