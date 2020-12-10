@@ -18,7 +18,7 @@ import logging
 scriptName          = os.path.basename(sys.argv[0]).split('.')[0]
 homeDir             = expanduser("~")
 defaultConfigFiles  = [
-    '/etc/' + scriptName + '/' + scriptName + '.yaml',
+    '/etc/' + scriptName + '/config.yaml',
     homeDir + '/.' + scriptName + '.yaml',
 ]
 cfg = {
