@@ -87,6 +87,7 @@ if __name__ == "__main__":
     elif re.match(r"^debug$", cfg['logLevel'], re.IGNORECASE):
         logLevel = logging.DEBUG
     else:
+        #logging.getLogger("urllib3").setLevel(logging.WARNING)
         logLevel = logging.INFO
 
     if cfg['logFile'] == 'stdout':
