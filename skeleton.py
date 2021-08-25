@@ -94,14 +94,14 @@ if __name__ == "__main__":
     if cfg['logFile'] == 'stdout':
         logging.basicConfig(
             level       = logLevel,
-            format      = '%(asctime)s\t%(levelname)s\t%(message)s',
+            format      = '%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s',
             datefmt     = '%Y-%m-%dT%H:%M:%S',
         )
     else:
         logging.basicConfig(
             filename    = cfg['logFile'],
             level       = logLevel,
-            format      = '%(asctime)s\t%(levelname)s\t%(message)s',
+            format      = '%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s',
             datefmt     = '%Y-%m-%dT%H:%M:%S',
         )
     # }}
