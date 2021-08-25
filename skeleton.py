@@ -13,6 +13,9 @@ import re
 import logging
 # }}
 
+# local import {{
+# }}
+
 # base {{
 # default vars
 scriptName          = os.path.basename(sys.argv[0]).split('.')[0]
