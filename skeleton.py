@@ -11,6 +11,7 @@ import argparse
 import yaml
 import re
 import logging
+import inspect
 # }}
 
 # local import {{
@@ -73,6 +74,11 @@ if cfg['logDir'] == '':
     cfg['logDir'] = '.'
 # }}
 
+# defs
+def testbytest():
+    defName = inspect.stack()[0][3]
+    logging.info("%s: 1111" % (defName))
+
 if __name__ == "__main__":
     # basic config {{
     for dirPath in [
@@ -109,4 +115,4 @@ if __name__ == "__main__":
         )
     # }}
 
-    print 'test'
+    testbytest()
