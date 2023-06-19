@@ -19,16 +19,16 @@ import inspect
 
 # base {{
 # default vars
-scriptName          = os.path.basename(sys.argv[0]).split('.')[0]
-homeDir             = expanduser("~")
-defaultConfigFiles  = [
+scriptName = os.path.basename(sys.argv[0]).split('.')[0]
+homeDir = expanduser("~")
+defaultConfigFiles = [
     '/etc/' + scriptName + '/config.yaml',
     homeDir + '/.' + scriptName + '.yaml',
 ]
 cfg = {
-    'logFile':          '/var/log/' + scriptName + '/' + scriptName + '.log',
-    'logFile':          'stdout',
-    'logLevel':         'info',
+    'logFile': '/var/log/' + scriptName + '/' + scriptName + '.log',
+    'logFile': 'stdout',
+    'logLevel': 'info',
 }
 
 # parse args
@@ -51,9 +51,9 @@ if argConfigFile:
     if os.path.isfile(argConfigFile):
         try:
             with open(argConfigFile, 'r') as ymlfile:
-                cfg.update(yaml.load(ymlfile))
+                cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
         except Exception as e:
-            logging.error('failed load config file: "%s", error: "%s"', argConfigFile, e)
+            logging.error('main: failed load config file: "%s", error: "%s"', argConfigFile, e)
             exit(1)
 else:
     for configFile in defaultConfigFiles:
@@ -61,9 +61,9 @@ else:
             try:
                 with open(configFile, 'r') as ymlfile:
                     try:
-                        cfg.update(yaml.load(ymlfile))
+                        cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
                     except Exception as e:
-                        logging.warning('skipping load load config file: "%s", error "%s"', configFile, e)
+                        logging.warning('main: skipping load load config file: "%s", error "%s"', configFile, e)
                         continue
             except:
                 continue
