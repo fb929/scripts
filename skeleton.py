@@ -53,7 +53,7 @@ if argConfigFile:
             with open(argConfigFile, 'r') as ymlfile:
                 cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
         except Exception as e:
-            logging.error('main: failed load config file: "%s", error: "%s"', argConfigFile, e)
+            logging.error("main: failed load config file: '%s', error: '%s'", argConfigFile, e)
             exit(1)
 else:
     for configFile in defaultConfigFiles:
@@ -63,7 +63,7 @@ else:
                     try:
                         cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
                     except Exception as e:
-                        logging.warning('main: skipping load load config file: "%s", error "%s"', configFile, e)
+                        logging.warning("main: skipping load load config file: '%s', error '%s'", configFile, e)
                         continue
             except:
                 continue
