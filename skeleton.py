@@ -90,7 +90,7 @@ if __name__ == "__main__":
             if not os.path.isdir(dirPath):
                 raise
 
-    # выбор логлевела
+    # choice loglevel
     if re.match(r"^(warn|warning)$", cfg['logLevel'], re.IGNORECASE):
         logLevel = logging.WARNING
     elif re.match(r"^debug$", cfg['logLevel'], re.IGNORECASE):
