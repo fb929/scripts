@@ -64,7 +64,8 @@ else:
             try:
                 with open(configFile, 'r') as ymlfile:
                     try:
-                        cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
+                        #cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
+                        cfg = always_merger.merge(cfg,yaml.load(ymlfile,Loader=yaml.Loader))
                     except Exception as e:
                         logging.warning("main: skipping load load config file: '%s', error '%s'", configFile, e)
                         continue
