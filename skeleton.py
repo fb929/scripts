@@ -12,6 +12,7 @@ import yaml
 import re
 import logging
 import inspect
+from deepmerge import always_merger
 # }}
 
 # local import {{
@@ -24,6 +25,7 @@ homeDir = expanduser("~")
 defaultConfigFiles = [
     '/etc/' + scriptName + '/config.yaml',
     homeDir + '/.' + scriptName + '.yaml',
+    './.config.yaml',
 ]
 cfg = {
     'logFile': '/var/log/' + scriptName + '/' + scriptName + '.log',
@@ -51,7 +53,8 @@ if argConfigFile:
     if os.path.isfile(argConfigFile):
         try:
             with open(argConfigFile, 'r') as ymlfile:
-                cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
+                #cfg.update(yaml.load(ymlfile,Loader=yaml.Loader))
+                cfg = always_merger.merge(cfg,yaml.load(ymlfile,Loader=yaml.Loader))
         except Exception as e:
             logging.error("main: failed load config file: '%s', error: '%s'", argConfigFile, e)
             exit(1)
